@@ -11,7 +11,7 @@ It shows approval rates by language, rejection patterns, delivery status across 
 
 ## Why I Built This
 
-My background is in Global Project Management (MSc, University of Essex) but my day to day work is in AI data quality. This dashboard is where those two things meet.
+My background is in Global Project Management (MSc University of Essex) but my day to day work is in AI data quality. This dashboard is where those two things meet.
 
 I taught myself Python and built this as part of my own learning — not for a course, not for work, but because I wanted to turn the patterns I notice in my QA work into something visible and useful.
 
