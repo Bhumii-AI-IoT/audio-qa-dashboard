@@ -2,14 +2,14 @@
 app.py
 ======
 Author: Bhumii Shah
-Role: AI Data Quality Specialist — Final QA Reviewer
+Role: AI Data Quality Specialist - Final QA Reviewer
 
 This dashboard tracks the health of audio and conversational
 AI data quality review projects across three languages:
 Hindi, Gujarati, and English.
 
 I built this to visualise the kind of QA metrics I work
-with day to day — approval rates, rejection patterns,
+with day to day - approval rates, rejection patterns,
 and project risk flags.
 
 To run: streamlit run app.py
@@ -33,18 +33,18 @@ st.set_page_config(
 # LOAD DATA
 # Calling each function from data_loader.py
 # ─────────────────────────────────────────────
-df_projects  = data_loader.get_project_data()
-df_languages = data_loader.get_language_summary()
+df_projects   = data_loader.get_project_data()
+df_languages  = data_loader.get_language_summary()
 df_rejections = data_loader.get_rejection_reasons()
-df_risks     = data_loader.get_risk_flags()
+df_risks      = data_loader.get_risk_flags()
 
 # ─────────────────────────────────────────────
 # SIDEBAR
 # ─────────────────────────────────────────────
 with st.sidebar:
-    st.markdown("## 🎛 Filters")
+    st.markdown("## Filters")
 
-    # Language filter — pulls unique values from data automatically
+    # Language filter - pulls unique values from data automatically
     lang_options = ["All Languages"] + sorted(df_projects["Language"].unique().tolist())
     selected_lang = st.selectbox("Language", lang_options)
 
@@ -54,7 +54,7 @@ with st.sidebar:
 
     st.markdown("---")
     st.markdown("**Audio QA Project Dashboard**")
-    st.markdown("Built by Bhumii Shah · AI Data Quality Specialist")
+    st.markdown("Built by Bhumii Shah - AI Data Quality Specialist")
 
 # ─────────────────────────────────────────────
 # APPLY FILTERS
@@ -78,6 +78,59 @@ st.caption(
 st.markdown("---")
 
 # ─────────────────────────────────────────────
+# AUTO SUMMARY INSIGHT
+# Reads the data and surfaces the most important
+# finding automatically - no hardcoding needed.
+# This is what separates a dashboard from a table.
+# ─────────────────────────────────────────────
+
+# Find the language with the lowest approval rate
+worst_lang = df_languages.loc[df_languages["Approval_Rate_%"].idxmin()]
+worst_name = worst_lang["Language"]
+worst_rate = worst_lang["Approval_Rate_%"]
+
+# Count open risk flags
+open_count = len(df_risks[df_risks["Status"] == "Open"])
+
+# Count projects still not delivered
+pending = len(df_projects[df_projects["Status"] != "Delivered"])
+
+# Build the message based on what the data actually shows
+if worst_rate < 85:
+    severity = "error"
+    message = (
+        f"**Attention needed:** {worst_name} approval rate is at {worst_rate}% "
+        f"- below the 90% quality gate. "
+        f"{open_count} risk flags open. "
+        f"{pending} projects pending delivery."
+    )
+elif worst_rate < 90:
+    severity = "warning"
+    message = (
+        f"**Review recommended:** {worst_name} approval rate is at {worst_rate}% "
+        f"- approaching the 90% quality gate. "
+        f"{open_count} risk flags open. "
+        f"{pending} projects pending delivery."
+    )
+else:
+    severity = "success"
+    message = (
+        f"**All languages meeting quality gate.** "
+        f"{open_count} risk flags open. "
+        f"{pending} projects pending delivery."
+    )
+
+# Display the right colour banner based on severity
+if severity == "error":
+    st.error(message)
+elif severity == "warning":
+    st.warning(message)
+else:
+    st.success(message)
+
+st.markdown("---")
+
+# ─────────────────────────────────────────────
 # SECTION 1: KEY METRICS
 # The four numbers a QA Lead checks first
 # ─────────────────────────────────────────────
@@ -91,17 +144,17 @@ open_risks     = len(df_risks[df_risks["Status"] == "Open"])
 
 col1, col2, col3, col4 = st.columns(4)
 
-col1.metric("Files Reviewed",   f"{total_files:,}")
-col2.metric("Approved",         f"{total_approved:,}")
+col1.metric("Files Reviewed",        f"{total_files:,}")
+col2.metric("Approved",              f"{total_approved:,}")
 col3.metric("Overall Approval Rate", f"{overall_rate}%", delta="Target: 90%")
-col4.metric("Open Risk Flags",  open_risks)
+col4.metric("Open Risk Flags",       open_risks)
 
 st.markdown("---")
 
 # ─────────────────────────────────────────────
 # SECTION 2: APPROVAL RATE BY LANGUAGE
-# This is the core QA metric — shows which languages
-# are meeting the quality threshold and which aren't
+# Shows which languages are meeting the quality
+# threshold and which are not
 # ─────────────────────────────────────────────
 st.subheader("Approval Rate by Language")
 
@@ -114,13 +167,13 @@ with col_left:
         y="Language",
         orientation="h",
         color="Approval_Rate_%",
-        # Colour scale goes red → yellow → green
+        # Colour scale goes red to yellow to green
         color_continuous_scale=["#ff6b6b", "#ffd43b", "#69db7c"],
         range_color=[75, 100],
         title="Approval Rate per Language (all projects)",
         text="Approval_Rate_%",
     )
-    # Dashed line at 90% — the quality gate
+    # Dashed line at 90% - the quality gate
     fig_lang.add_vline(
         x=90,
         line_dash="dash",
@@ -140,7 +193,7 @@ with col_right:
         use_container_width=True
     )
     st.caption(
-        "Gujarati is the toughest — linguistically complex and smallest dataset. "
+        "Gujarati is the toughest - linguistically complex and smallest dataset. "
         "Hindi is affected by regional accent variation. "
         "English is the most consistent."
     )
@@ -149,10 +202,10 @@ st.markdown("---")
 
 # ─────────────────────────────────────────────
 # SECTION 3: REJECTION REASONS
-# Shows what's actually going wrong — the patterns
+# Shows what is actually going wrong - the patterns
 # a QA reviewer spots over time
 # ─────────────────────────────────────────────
-st.subheader("Why Files Get Rejected?")
+st.subheader("Why Files Get Rejected")
 
 col_a, col_b = st.columns(2)
 
@@ -186,7 +239,7 @@ with col_b:
 st.markdown("---")
 
 # ─────────────────────────────────────────────
-# SECTION 4: PROJECT TABLE
+# SECTION 4: PROJECT TRACKER
 # Full view of all projects with approval rates
 # ─────────────────────────────────────────────
 st.subheader("Project Tracker")
@@ -221,10 +274,10 @@ col_r1, col_r2 = st.columns([2, 1])
 with col_r1:
     st.markdown("#### Open Flags")
     for _, row in open_flags.iterrows():
-     if row["Severity"] == "High" :\
-     severity_label = "[HIGH]"
-    else:
-        severity_label = "[MEDIUM]"
+        if row["Severity"] == "High":
+            severity_label = "[HIGH]"
+        else:
+            severity_label = "[MEDIUM]"
         st.markdown(f"{severity_label} **{row['Flag']}** · `{row['Project']}`")
         st.caption(row["Description"])
         st.markdown("---")
