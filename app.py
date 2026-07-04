@@ -286,7 +286,69 @@ with col_r2:
     st.markdown("#### Resolved")
     for _, row in resolved_flags.iterrows():
         st.markdown(f"{row['Flag']}")
+# ─────────────────────────────────────────────
+# SECTION 6: RECOMMENDATIONS
+# Based on patterns observed during final QA review.
+# These are not generic suggestions — they come from
+# doing this work every day across three languages.
+# ─────────────────────────────────────────────
+st.subheader("Recommendations")
 
+st.markdown("""
+These recommendations come directly from patterns observed
+during final QA review across Hindi, Gujarati, and English
+audio projects.
+""")
+
+col_rec1, col_rec2, col_rec3 = st.columns(3)
+
+with col_rec1:
+    st.markdown("#### Gujarati — Annotator Pool")
+    st.markdown("""
+    Gujarati has the lowest approval rate at 82.7% and the
+    smallest dataset. The core issue is not just volume —
+    it is that annotators without native or fluent Gujarati
+    are making judgement calls they are not equipped to make.
+
+    **Recommendation:** Prioritise native Gujarati speakers
+    for this language. Where audio is genuinely
+    incomprehensible — not just accented but unclear —
+    annotators should have a defined right to skip rather
+    than guess. A gap in the dataset is recoverable.
+    A wrong transcription is not.
+    """)
+
+with col_rec2:
+    st.markdown("#### Hindi — Guideline Update")
+    st.markdown("""
+    Hindi approval rates sit at 88.1% — below the 90%
+    quality gate. The main driver is regional accent
+    variation. Bhojpuri-inflected Hindi and Rajasthani
+    accent variants are not covered in current guidelines,
+    so annotators default to guessing.
+
+    **Recommendation:** Update annotation guidelines to
+    include audio examples of the most common regional
+    accent variants. Annotators should be able to match
+    what they hear to a known category — not make it up
+    as they go.
+    """)
+
+with col_rec3:
+    st.markdown("#### All Languages — Living Guidelines")
+    st.markdown("""
+    Across all three languages, a recurring pattern is
+    annotators encountering audio types that the guidelines
+    do not cover. The current approach treats guidelines
+    as fixed documents written before the project starts.
+
+    **Recommendation:** Guidelines should be treated as
+    living documents that are updated as new audio patterns
+    emerge. When annotators regularly flag a type of audio
+    the guidelines do not address, that is a signal to
+    update — not to guess.
+    """)
+    
 # ─────────────────────────────────────────────
 # FOOTER
 # ─────────────────────────────────────────────
