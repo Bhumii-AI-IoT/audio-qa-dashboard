@@ -27,7 +27,7 @@ Audio data quality is not just about catching errors. It is about understanding 
 
 ## Project Architecture
 
-![Project Architecture](architecture.png)
+![Project Architecture](assets/architecture.png)
 
 ## What It Shows
 
