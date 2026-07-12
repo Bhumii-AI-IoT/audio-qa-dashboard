@@ -25,6 +25,10 @@ That combination — engineering fundamentals, project management methodology, a
 
 Audio data quality is not just about catching errors. It is about understanding the full pipeline from signal to model output. My ECE background gives me a technical foundation for understanding audio data at a deeper level than a typical QA reviewer.
 
+## Project Architecture
+
+![Project Architecture](architecture.png)
+
 ## What It Shows
 
 - **Approval Rate by Language** — which languages are meeting the 90% quality gate and which are not
