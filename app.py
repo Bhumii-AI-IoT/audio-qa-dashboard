@@ -349,6 +349,49 @@ with col_rec3:
     update — not to guess.
     """)
     
+    # ─────────────────────────────────────────────
+# SECTION 7: ML RISK PREDICTIONS
+# Uses a Random Forest model to predict which
+# projects are likely to pass or fail the
+# 90% quality gate.
+# ─────────────────────────────────────────────
+st.subheader("ML Risk Predictions")
+
+st.markdown("""
+This section uses a machine learning model trained on
+current project data to predict which projects are at
+risk of failing the 90% approval rate quality gate.
+
+The model learns from four signals: language, data type,
+file volume, and current rejection count.
+""")
+
+# Import our model and run predictions
+import model
+
+predictions_df = model.predict_project_risk(df_projects)
+
+# Colour code prediction column
+def colour_prediction(val):
+    if val == "Pass":
+        return "color: #69db7c"
+    else:
+        return "color: #ff6b6b"
+
+styled_predictions = predictions_df.style.map(
+    colour_prediction, subset=["Prediction"]
+)
+
+st.dataframe(
+    styled_predictions.format({"Pass_Probability_%": "{:.1f}%"}),
+    hide_index=True,
+    use_container_width=True
+)
+st.caption(
+    "Prediction is based on patterns in current project data. "
+    "As more projects are reviewed, the model becomes more accurate."
+)
+
 # ─────────────────────────────────────────────
 # FOOTER
 # ─────────────────────────────────────────────
