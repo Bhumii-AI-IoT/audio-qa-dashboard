@@ -25,16 +25,27 @@ That combination — engineering fundamentals, project management methodology, a
 
 Audio data quality is not just about catching errors. It is about understanding the full pipeline from signal to model output. My ECE background gives me a technical foundation for understanding audio data at a deeper level than a typical QA reviewer.
 
+## Dashboard Preview
+
+### Overview & QA Metrics
+![Dashboard Top](assets/dashboard-top.png)
+
+### Project Tracker, Risk Flags & Recommendations
+![Dashboard Bottom](assets/dashboard-bottom.png)
+
 ## Project Architecture
 
 ![Project Architecture](assets/architecture.png)
 
 ## What It Shows
 
+- **Auto Summary Insight** — banner at the top that automatically surfaces the most important finding from the data
 - **Approval Rate by Language** — which languages are meeting the 90% quality gate and which are not
 - **Rejection Reason Breakdown** — the most common errors caught during final QA review
 - **Project Tracker** — delivery status across all active projects
 - **Risk Flag Monitor** — open blockers with severity levels and descriptions
+- **ML Risk Predictions** — a Random Forest model predicts which projects are likely to pass or fail the 90% quality gate based on language, data type, file volume, and rejection count
+- **Recommendations** — based on real patterns observed during daily QA review
 
 ## Key Findings
 
