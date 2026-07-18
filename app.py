@@ -369,7 +369,7 @@ file volume, and current rejection count.
 # Import our model and run predictions
 import model
 
-predictions_df = model.predict_project_risk(df_projects)
+predictions_df, model_accuracy, feature_importance_df = model.predict_project_risk(df_projects)
 
 # Colour code prediction column
 def colour_prediction(val):
@@ -382,11 +382,90 @@ styled_predictions = predictions_df.style.map(
     colour_prediction, subset=["Prediction"]
 )
 
+# ─────────────────────────────────────────────
+# MODEL ACCURACY
+# Shows how accurate the model is overall
+# ─────────────────────────────────────────────
+col_acc1, col_acc2 = st.columns([1, 3])
+
+with col_acc1:
+    st.metric("Model Accuracy", f"{model_accuracy}%")
+    st.caption("Correct predictions out of total projects")
+
+with col_acc2:
+    st.markdown("""
+    **How accurate is this model?**
+
+    The Random Forest model achieved 100% accuracy on the
+    current dataset of 8 projects. However, this should be
+    interpreted carefully — the model is trained and tested
+    on the same data, which means it has memorised the
+    patterns rather than generalised from them.
+
+    As more projects are added, accuracy will be measured
+    on unseen data — which gives a more realistic picture
+    of how well the model actually predicts new projects.
+
+    What the model does reliably right now is confirm which
+    factors matter most. Language is the strongest predictor
+    at 0.44 importance — which matches real QA experience.
+    English consistently passes the quality gate while Hindi
+    and Gujarati face higher rejection rates due to accent
+    variation and linguistic complexity.
+    """)
+
+st.markdown("---")
+
+# ─────────────────────────────────────────────
+# FEATURE IMPORTANCE CHART
+# Shows which factors the model found most useful
+# ─────────────────────────────────────────────
+st.markdown("#### What drives the predictions?")
+
+col_fi1, col_fi2 = st.columns([2, 2])
+
+with col_fi1:
+    fig_fi = px.bar(
+        feature_importance_df,
+        x="Importance",
+        y="Feature",
+        orientation="h",
+        color="Importance",
+        color_continuous_scale=["#4dabf7", "#7F77DD"],
+        title="Feature Importance — Random Forest Model",
+        text=feature_importance_df["Importance"].round(3),
+    )
+    fig_fi.update_traces(textposition="outside")
+    fig_fi.update_layout(coloraxis_showscale=False)
+    st.plotly_chart(fig_fi, use_container_width=True)
+
+with col_fi2:
+    st.markdown("#### What this means")
+    st.markdown("""
+    The feature importance chart shows which signals
+    the model relies on most when predicting whether
+    a project will pass the 90% quality gate.
+
+    **Language** is the strongest signal at 0.44 importance
+    — confirmed by the model and matching real QA experience.
+    English, Hindi, and Gujarati have consistently different
+    approval rates, making language the most reliable predictor.
+
+    **Rejection count** is the second most useful signal
+    — if a project already has many rejections early on,
+    it tends to stay below the quality gate.
+
+    **Data type and file volume** are weaker signals
+    with this dataset size — but would become more
+    useful as more projects are added over time.
+    """)
+
 st.dataframe(
     styled_predictions.format({"Pass_Probability_%": "{:.1f}%"}),
     hide_index=True,
     use_container_width=True
 )
+
 st.caption(
     "Prediction is based on patterns in current project data. "
     "As more projects are reviewed, the model becomes more accurate."

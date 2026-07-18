@@ -96,6 +96,34 @@ def predict_project_risk(df_projects):
     df["Prediction"] = ["Pass" if p == 1 else "Fail" for p in predictions]
     df["Pass_Probability_%"] = (probabilities * 100).round(1)
 
-    # Return only the columns we need for the dashboard
-    return df[["Project_Code", "Language", "Status",
-               "Approval_Rate_%", "Prediction", "Pass_Probability_%"]]
+   # ─────────────────────────────────────────────
+    # STEP 7: CALCULATE MODEL ACCURACY
+    # Accuracy = how many predictions were correct
+    # out of total predictions made.
+    # We compare predictions against actual targets.
+    # ─────────────────────────────────────────────
+    correct = (predictions == y.values).sum()
+    accuracy = round((correct / len(y)) * 100, 1)
+
+    # ─────────────────────────────────────────────
+    # STEP 8: FEATURE IMPORTANCE
+    # Random Forest tells us which features it found
+    # most useful for making predictions.
+    # Higher value = more important to the model.
+    # ─────────────────────────────────────────────
+    importance_df = pd.DataFrame({
+        "Feature": ["Language", "Data Type", "Files Reviewed", "Rejected Count"],
+        "Importance": model.feature_importances_
+    }).sort_values("Importance", ascending=False).reset_index(drop=True)
+
+    # ─────────────────────────────────────────────
+    # STEP 9: RETURN EVERYTHING
+    # We now return three things instead of one:
+    # 1. predictions DataFrame
+    # 2. accuracy score
+    # 3. feature importance DataFrame
+    # ─────────────────────────────────────────────
+    predictions_df = df[["Project_Code", "Language", "Status",
+                          "Approval_Rate_%", "Prediction", "Pass_Probability_%"]]
+
+    return predictions_df, accuracy, importance_df
