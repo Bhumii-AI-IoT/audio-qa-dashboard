@@ -1,6 +1,10 @@
 # Audio QA Project Dashboard
 A project health and quality tracking dashboard for multilingual audio and conversational AI data — built with Python and Streamlit.
 
+## Live Demo
+
+[View the live dashboard here](https://audio-app-dashboard-nun6jt8bkandqfhza9xpsv.streamlit.app/)
+
 ## What This Is
 
 I work as an AI Data Quality Specialist reviewing audio and conversational AI training data across three languages — Hindi, Gujarati, and English.
