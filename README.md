@@ -86,6 +86,8 @@ rather than discovering problems at the end.
 - Streamlit
 - Pandas
 - Plotly
+- Scikit-learn
+- Matplotlib
 
 ## How to Run It
 
