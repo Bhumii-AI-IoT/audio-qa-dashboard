@@ -59,6 +59,27 @@ These are not things I read somewhere — they come from doing the reviews mysel
 - **Hindi** suffers from regional accent variation that annotation guidelines do not fully account for
 - **English** is the most consistent but accent misclassification still appears regularly
 
+## ML Model - Risk Prediction
+
+The dashboard includes a Random Forest classifier that predicts which projects 
+are at risk of failing the 90% quality gate.
+
+**Why Random Forest:**
+- Handles mixed data types (language category + numeric metrics)
+- Shows which factors matter most (feature importance)
+- Fast predictions for real-time dashboard updates
+- Results are interpretable — I can explain WHY a project is flagged
+
+**Features the model uses:**
+- Language (Hindi, Gujarati, English)
+- Audio data type
+- File volume
+- Rejection count and patterns
+
+**Result:**
+Projects at risk are flagged before final review, giving teams time to improve 
+rather than discovering problems at the end.
+
 ## Tech Stack
 
 - Python
