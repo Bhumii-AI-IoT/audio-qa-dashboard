@@ -34,7 +34,7 @@ Audio data quality is not just about catching errors. It is about understanding 
 ### Overview & QA Metrics
 ![Dashboard Top](assets/dashboard-top.png)
 
-### Project Tracker, Risk Flags & Recommendations
+### Recommendations & Early Risk Prediction
 ![Dashboard Bottom](assets/dashboard-bottom.png)
 
 ## Project Architecture
@@ -48,7 +48,7 @@ Audio data quality is not just about catching errors. It is about understanding 
 - **Rejection Reason Breakdown** — the most common errors caught during final QA review
 - **Project Tracker** — delivery status across all active projects
 - **Risk Flag Monitor** — open blockers with severity levels and descriptions
-- **ML Risk Predictions** — a Random Forest model predicts which projects are likely to pass or fail the 90% quality gate based on language, data type, file volume, and rejection count
+- **Early Risk Prediction** — a Random Forest model predicts which projects will finish below the 90% quality gate, using only signals available in the first weeks of a project
 - **Recommendations** — based on real patterns observed during daily QA review
 
 ## Key Findings
@@ -61,8 +61,9 @@ These are not things I read somewhere — they come from doing the reviews mysel
 
 ## ML Model - Risk Prediction
 
-The dashboard includes a Random Forest classifier that predicts which projects 
-are at risk of failing the 90% quality gate.
+The dashboard includes a Random Forest classifier that predicts which
+projects will finish below the 90% quality gate — using only signals
+available in the first weeks, before the outcome is known.
 
 **Why Random Forest:**
 - Handles mixed data types (language category + numeric metrics)
@@ -73,12 +74,61 @@ are at risk of failing the 90% quality gate.
 **Features the model uses:**
 - Language (Hindi, Gujarati, English)
 - Audio data type
-- File volume
-- Rejection count and patterns
+- Planned file volume
+- Annotator count and native speaker share
+- Guideline age
+- Rejection rate on the first 10% of files
+
+**Performance:**
+
+| Metric | Score |
+|---|---|
+| 5-fold cross-validation | 87.6% (± 2.7%) |
+| Held-out accuracy | 90.7% on 75 unseen projects |
+| Precision | 97.1% |
+| Recall | 85.0% |
+
+I lead with the cross-validation figure rather than the held-out one.
+When I reran the training across seven different random seeds, held-out
+accuracy moved between 80% and 91% — the 90.7% is the top of that range.
+Cross-validation re-splits and averages, so it moves far less. 87.6% is
+the number I would defend.
+
+**Note on the data:** the project history behind this model is synthetic.
+It is generated to reflect patterns I observe reviewing Hindi, Gujarati
+and English audio, but it contains no client data and no real project
+records.
 
 **Result:**
-Projects at risk are flagged before final review, giving teams time to improve 
-rather than discovering problems at the end.
+Projects at risk are flagged before final review, giving teams time to
+improve rather than discovering problems at the end.
+
+## What I Got Wrong First
+
+The first version of this model reported 100% accuracy and I was pleased
+with it. It was wrong, and the mistake is worth writing down.
+
+I gave the model `Files_Reviewed` and `Rejected` as inputs, then asked it
+to predict whether approval rate fell below 90%. But approval rate is
+calculated as:
+
+approval_rate = 1 - (rejected / files_reviewed)
+
+So the two features I handed it were the two numbers the answer is
+calculated from. It scored 100% because it was doing division, not
+learning. This is called **target leakage**.
+
+The part that took me longest to accept: more data would not have fixed
+this, and neither would a train/test split. The leak was in the features
+themselves, so it travels into the test set with them.
+
+The fix was to change the question. Instead of *"given the finished
+numbers, did it fail?"* — which you already know — the model now answers
+*"given the setup and the first batch, will it fail?"* That version is
+worth having, because there is still time to act on the answer.
+
+This was flagged in peer review. Catching it changed how I look at every
+feature I put into a model: can I actually know this before the outcome?
 
 ## Tech Stack
 
