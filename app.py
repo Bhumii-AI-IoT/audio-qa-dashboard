@@ -2,7 +2,7 @@
 app.py
 ======
 Author: Bhumii Shah
-Role: AI Data Quality Specialist - Final QA Reviewer
+Role: AI Data Quality - Final QA Reviewer
 
 This dashboard tracks the health of audio and conversational
 AI data quality review projects across three languages:
@@ -18,6 +18,7 @@ To run: streamlit run app.py
 import streamlit as st
 import plotly.express as px
 import data_loader
+import model
 
 # ─────────────────────────────────────────────
 # PAGE CONFIG
@@ -348,129 +349,153 @@ with col_rec3:
     the guidelines do not address, that is a signal to
     update — not to guess.
     """)
-    
-    # ─────────────────────────────────────────────
-# SECTION 7: ML RISK PREDICTIONS
-# Uses a Random Forest model to predict which
-# projects are likely to pass or fail the
-# 90% quality gate.
+
 # ─────────────────────────────────────────────
-st.subheader("ML Risk Predictions")
+# SECTION 7: EARLY RISK PREDICTION
+#
+# Predicts whether a project will finish below the 90% gate,
+# using only signals available in the first weeks - before
+# the outcome is known.
+# ─────────────────────────────────────────────
+st.markdown("---")
+st.subheader("Early Risk Prediction")
 
-st.markdown("""
-This section uses a machine learning model trained on
-current project data to predict which projects are at
-risk of failing the 90% approval rate quality gate.
+st.markdown(
+    "This model predicts whether a project will finish **below the 90% "
+    "approval quality gate**, using only signals available in the first "
+    "weeks of a project - before the outcome is known."
+)
 
-The model learns from four signals: language, data type,
-file volume, and current rejection count.
-""")
 
-# Import our model and run predictions
-import model
+# Train once per session. Without the cache Streamlit retrains the model
+# on every click and the dashboard becomes slow.
+@st.cache_data
+def load_risk_model():
+    training_data = model.generate_synthetic_projects(n_projects=300)
+    fitted, metrics, importance = model.train_risk_model(training_data)
+    return training_data, metrics, model.group_importance(importance)
 
-predictions_df, model_accuracy, feature_importance_df = model.predict_project_risk(df_projects)
 
-# Colour code prediction column
-def colour_prediction(val):
-    if val == "Pass":
-        return "color: #69db7c"
-    else:
-        return "color: #ff6b6b"
+training_data, metrics, importance = load_risk_model()
 
-styled_predictions = predictions_df.style.map(
-    colour_prediction, subset=["Prediction"]
+st.info(
+    "**The data behind this model is synthetic.** It is generated to "
+    "reflect patterns I observe reviewing Hindi, Gujarati and English "
+    "audio, but it contains no client data and no real project records."
 )
 
 # ─────────────────────────────────────────────
-# MODEL ACCURACY
-# Shows how accurate the model is overall
+# HONEST METRICS
+# Measured on projects the model never trained on.
 # ─────────────────────────────────────────────
-col_acc1, col_acc2 = st.columns([1, 3])
+m1, m2, m3, m4 = st.columns(4)
 
-with col_acc1:
-    st.metric("Model Accuracy", f"{model_accuracy}%")
-    st.caption("Correct predictions out of total projects")
+m1.metric("5-fold CV accuracy", f"{metrics['cv_mean']}%")
+m1.caption(f"± {metrics['cv_std']}% - the stable number")
 
-with col_acc2:
-    st.markdown("""
-    **How accurate is this model?**
+m2.metric("Held-out accuracy", f"{metrics['accuracy']}%")
+m2.caption(f"On {metrics['n_test']} unseen projects")
 
-    The Random Forest model achieved 100% accuracy on the
-    current dataset of 8 projects. However, this should be
-    interpreted carefully — the model is trained and tested
-    on the same data, which means it has memorised the
-    patterns rather than generalised from them.
+m3.metric("Precision", f"{metrics['precision']}%")
+m3.caption("When it flags, how often it is right")
 
-    As more projects are added, accuracy will be measured
-    on unseen data — which gives a more realistic picture
-    of how well the model actually predicts new projects.
+m4.metric("Recall", f"{metrics['recall']}%")
+m4.caption("Share of at-risk projects it catches")
 
-    What the model does reliably right now is confirm which
-    factors matter most. Language is the strongest predictor
-    at 0.44 importance — which matches real QA experience.
-    English consistently passes the quality gate while Hindi
-    and Gujarati face higher rejection rates due to accent
-    variation and linguistic complexity.
+st.caption(
+    f"Trained on {metrics['n_train']} projects, scored on "
+    f"{metrics['n_test']} it never saw. {metrics['pct_below_gate']}% of "
+    "projects fall below the gate, so the classes are roughly balanced "
+    "and accuracy is a meaningful measure rather than an inflated one."
+)
+
+with st.expander("How reliable is this, and where does it fall short?"):
+    st.markdown(f"""
+**Which number to trust**
+
+I lead with the cross-validation score rather than the held-out score.
+Held-out accuracy is measured on one particular split of
+{metrics['n_test']} projects, and when I reran the whole thing across
+seven different random seeds it moved between 80% and 91%. Cross-validation
+re-splits the training data five ways and averages, so it moves far less.
+{metrics['cv_mean']}% is the figure I would defend.
+
+**What the trade-off means**
+
+Precision of {metrics['precision']}% means that when the model flags a
+project, it is nearly always right. Recall of {metrics['recall']}% means
+it still misses some genuinely at-risk projects. For QA triage I would
+rather it erred the other way - a false alarm costs one extra check,
+a missed flag costs a late rework.
+
+**What it does not do**
+
+The training data is synthetic. The model demonstrates an approach; it
+has not been validated against production outcomes.
+
+**A note on the earlier version**
+
+The first version of this section reported 100% accuracy and I was pleased
+with it. It was wrong on two counts. It was scored on its own training
+data, and one of its features - rejected count - was arithmetically the
+same as the label, since approval rate is just one minus rejections over
+files reviewed. I had handed the model the answer and asked it to work out
+the answer. That is called target leakage, and neither more data nor a
+train/test split would have fixed it. The fix was to change the question:
+from *"given the finished numbers, did it fail?"* to *"given the setup and
+the first batch, will it fail?"*
     """)
 
 st.markdown("---")
 
 # ─────────────────────────────────────────────
-# FEATURE IMPORTANCE CHART
-# Shows which factors the model found most useful
+# FEATURE IMPORTANCE
 # ─────────────────────────────────────────────
-st.markdown("#### What drives the predictions?")
+st.markdown("#### What drives the prediction")
 
-col_fi1, col_fi2 = st.columns([2, 2])
+col_fi1, col_fi2 = st.columns([3, 2])
 
 with col_fi1:
-    fig_fi = px.bar(
-        feature_importance_df,
+    fig_imp = px.bar(
+        importance.sort_values("Importance"),
         x="Importance",
         y="Feature",
         orientation="h",
         color="Importance",
-        color_continuous_scale=["#4dabf7", "#7F77DD"],
-        title="Feature Importance — Random Forest Model",
-        text=feature_importance_df["Importance"].round(3),
+        color_continuous_scale=["#a5d8ff", "#5c7cfa"],
+        title="Feature importance - Random Forest",
+        text="Importance",
     )
-    fig_fi.update_traces(textposition="outside")
-    fig_fi.update_layout(coloraxis_showscale=False)
-    st.plotly_chart(fig_fi, use_container_width=True)
+    fig_imp.update_traces(texttemplate="%{text:.3f}", textposition="outside")
+    fig_imp.update_layout(coloraxis_showscale=False, margin=dict(r=70))
+    st.plotly_chart(fig_imp, use_container_width=True)
 
 with col_fi2:
-    st.markdown("#### What this means")
-    st.markdown("""
-    The feature importance chart shows which signals
-    the model relies on most when predicting whether
-    a project will pass the 90% quality gate.
+    # Pulled from the data rather than typed in, so this text cannot
+    # drift out of step with the chart next to it.
+    top = importance.iloc[0]
+    native = importance.loc[importance["Feature"] == "Native speaker share",
+                            "Importance"].values[0]
+    headcount = importance.loc[importance["Feature"] == "Annotator count",
+                               "Importance"].values[0]
 
-    **Language** is the strongest signal at 0.44 importance
-    — confirmed by the model and matching real QA experience.
-    English, Hindi, and Gujarati have consistently different
-    approval rates, making language the most reliable predictor.
+    st.markdown(f"""
+**{top['Feature']}** is the strongest signal at {top['Importance']:.2f}.
+That matches what the approval rates show directly - English, Hindi and
+Gujarati sit at consistently different levels, so knowing the language
+already tells you a lot.
 
-    **Rejection count** is the second most useful signal
-    — if a project already has many rejections early on,
-    it tends to stay below the quality gate.
+**Early rejection rate** is the most useful non-obvious signal. Rejection
+patterns in the first tenth of a project tend to persist, which means
+problems are visible well before delivery.
 
-    **Data type and file volume** are weaker signals
-    with this dataset size — but would become more
-    useful as more projects are added over time.
+**Native speaker share** carries {native / headcount:.0f}x the weight of
+raw annotator count ({native:.3f} against {headcount:.3f}). That is the
+part I find most useful, because it supports the Gujarati recommendation
+I had already written from experience: it is a staffing quality problem
+before it is a headcount problem.
     """)
-
-st.dataframe(
-    styled_predictions.format({"Pass_Probability_%": "{:.1f}%"}),
-    hide_index=True,
-    use_container_width=True
-)
-
-st.caption(
-    "Prediction is based on patterns in current project data. "
-    "As more projects are reviewed, the model becomes more accurate."
-)
-
+    
 # ─────────────────────────────────────────────
 # FOOTER
 # ─────────────────────────────────────────────
