@@ -5,6 +5,8 @@ A project health and quality tracking dashboard for multilingual audio and conve
 
 [View the live dashboard here](https://audio-app-dashboard-nun6jt8bkandqfhza9xpsv.streamlit.app/)
 
+> This is a personal learning project. It is not connected to my employer, and all data is synthetic.
+
 ## What This Is
 
 I work as an AI Data Quality Specialist reviewing audio and conversational AI training data across three languages — Hindi, Gujarati, and English.
@@ -127,8 +129,8 @@ numbers, did it fail?"* — which you already know — the model now answers
 *"given the setup and the first batch, will it fail?"* That version is
 worth having, because there is still time to act on the answer.
 
-This was flagged in peer review. Catching it changed how I look at every
-feature I put into a model: can I actually know this before the outcome?
+Understanding this changed how I look at every feature I put into a
+model: can I actually know this before the outcome?
 
 ## Tech Stack
 
