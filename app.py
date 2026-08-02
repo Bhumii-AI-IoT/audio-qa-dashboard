@@ -305,24 +305,38 @@ col_rec1, col_rec2, col_rec3 = st.columns(3)
 
 with col_rec1:
     st.markdown("#### Gujarati — Annotator Pool")
-    st.markdown("""
-    Gujarati has the lowest approval rate at 82.7% and the
-    smallest dataset. The core issue is not just volume —
-    it is that annotators without native or fluent Gujarati
-    are making judgement calls they are not equipped to make.
 
-    **Recommendation:** Prioritise native Gujarati speakers
-    for this language. Where audio is genuinely
-    incomprehensible — not just accented but unclear —
-    annotators should have a defined right to skip rather
-    than guess. A gap in the dataset is recoverable.
-    A wrong transcription is not.
+    # Same reasoning as the Hindi block - read the rate from the
+    # dataframe rather than typing it in.
+    guj_rate = df_languages.loc[
+        df_languages["Language"] == "Gujarati", "Approval_Rate_%"
+    ].values[0]
+
+    st.markdown(f"""
+    Gujarati has the lowest approval rate at {guj_rate}% and the
+    smallest dataset. The core issue is not just volume — it is
+    that annotators without native or fluent Gujarati are making
+    judgement calls they are not equipped to make.
+
+    **Recommendation:** Prioritise native Gujarati speakers for
+    this language. Where audio is genuinely incomprehensible —
+    not just accented but unclear — annotators should have a
+    defined right to skip rather than guess. A gap in the dataset
+    is recoverable. A wrong transcription is not.
     """)
-
+    
 with col_rec2:
     st.markdown("#### Hindi — Guideline Update")
-    st.markdown("""
-    Hindi approval rates sit at 88.1% — below the 90%
+
+    # Pull the rate from the same dataframe the summary table uses,
+    # so this sentence can never drift out of step with the table
+    # above it. Hardcoding it is how the 88.1 / 87.1 mismatch happened.
+    hindi_rate = df_languages.loc[
+        df_languages["Language"] == "Hindi", "Approval_Rate_%"
+    ].values[0]
+
+    st.markdown(f"""
+    Hindi approval rates sit at {hindi_rate}% — below the 90%
     quality gate. The main driver is regional accent
     variation. Bhojpuri-inflected Hindi and Rajasthani
     accent variants are not covered in current guidelines,
