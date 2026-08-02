@@ -1,129 +1,206 @@
 """
-model.py
-========
-Author: Bhumii Shah
-Role: AI Data Quality Specialist
-
-This file builds a simple machine learning model that
-predicts whether a project will pass or fail the 90%
-approval rate quality gate.
-
-It learns from patterns in past project data:
-- Language
-- Data type
-- Volume of files
-- Rejection rate so far
-
-This mirrors what an experienced QA reviewer does
-naturally - using past experience to spot which
-projects are likely to be difficult.
+model.py — recreated from provided content for testing
 """
 
+import numpy as np
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.preprocessing import LabelEncoder
+from sklearn.model_selection import train_test_split, cross_val_score
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
 
-def predict_project_risk(df_projects):
+QUALITY_GATE = 90.0
+RANDOM_SEED = 42
+
+LANGUAGE_PROFILES = {
+    "English":  {"base_approval": 95.0, "spread": 2.5},
+    "Hindi":    {"base_approval": 88.5, "spread": 3.5},
+    "Gujarati": {"base_approval": 83.0, "spread": 4.0},
+}
+
+DATA_TYPES = ["Conversational AI", "Voice Command", "Call Centre", "Read Speech"]
+
+
+def generate_synthetic_projects(n_projects: int = 300,
+                                seed: int = RANDOM_SEED) -> pd.DataFrame:
+    rng = np.random.default_rng(seed)
+    rows = []
+
+    for i in range(n_projects):
+        language = rng.choice(list(LANGUAGE_PROFILES.keys()), p=[0.45, 0.35, 0.20])
+        profile = LANGUAGE_PROFILES[language]
+
+        data_type = rng.choice(DATA_TYPES)
+        planned_files = int(rng.integers(150, 1200))
+        annotator_count = int(rng.integers(3, 25))
+
+        native_ceiling = {"English": 1.0, "Hindi": 0.9, "Gujarati": 0.6}[language]
+        pct_native = round(float(rng.uniform(0.2, native_ceiling)), 2)
+
+        avg_audio_seconds = round(float(rng.uniform(4.0, 45.0)), 1)
+        guideline_age_days = int(rng.integers(5, 400))
+
+        approval = profile["base_approval"]
+        approval += (pct_native - 0.5) * 9.0
+        approval -= (guideline_age_days / 400) * 4.0
+        approval -= max(0, (avg_audio_seconds - 25)) * 0.10
+        approval += rng.normal(0, profile["spread"])
+        approval = float(np.clip(approval, 60.0, 99.5))
+
+        true_rejection = (100.0 - approval) / 100.0
+        early_rejection_rate = float(np.clip(
+            true_rejection + rng.normal(0, 0.06), 0.0, 1.0
+        ))
+
+        rows.append({
+            "Project_Code": f"PROJ-{language[:2].upper()}-{i:03d}",
+            "Language": language,
+            "Data_Type": data_type,
+            "Planned_Files": planned_files,
+            "Annotator_Count": annotator_count,
+            "Pct_Native_Speakers": pct_native,
+            "Avg_Audio_Seconds": avg_audio_seconds,
+            "Guideline_Age_Days": guideline_age_days,
+            "Early_Rejection_Rate": round(early_rejection_rate, 3),
+            "Final_Approval_Rate": round(approval, 1),
+        })
+
+    df = pd.DataFrame(rows)
+    df["Below_Gate"] = (df["Final_Approval_Rate"] < QUALITY_GATE).astype(int)
+    return df
+
+
+FEATURES = [
+    "Language",
+    "Data_Type",
+    "Planned_Files",
+    "Annotator_Count",
+    "Pct_Native_Speakers",
+    "Avg_Audio_Seconds",
+    "Guideline_Age_Days",
+    "Early_Rejection_Rate",
+]
+
+LEAKY_COLUMNS = ["Final_Approval_Rate", "Below_Gate", "Rejected", "Approved"]
+
+
+def _encode(df: pd.DataFrame) -> pd.DataFrame:
+    return pd.get_dummies(df[FEATURES], columns=["Language", "Data_Type"])
+
+
+def train_risk_model(df: pd.DataFrame, seed: int = RANDOM_SEED):
+    X = _encode(df)
+    y = df["Below_Gate"]
+
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.25, random_state=seed, stratify=y
+    )
+
+    model = RandomForestClassifier(
+        n_estimators=200,
+        max_depth=6,
+        min_samples_leaf=5,
+        random_state=seed,
+    )
+    model.fit(X_train, y_train)
+
+    y_pred = model.predict(X_test)
+
+    cv_scores = cross_val_score(model, X_train, y_train, cv=5, scoring="accuracy")
+
+    metrics = {
+        "accuracy": round(accuracy_score(y_test, y_pred) * 100, 1),
+        "precision": round(precision_score(y_test, y_pred, zero_division=0) * 100, 1),
+        "recall": round(recall_score(y_test, y_pred, zero_division=0) * 100, 1),
+        "f1": round(f1_score(y_test, y_pred, zero_division=0) * 100, 1),
+        "cv_mean": round(cv_scores.mean() * 100, 1),
+        "cv_std": round(cv_scores.std() * 100, 1),
+        "n_train": len(X_train),
+        "n_test": len(X_test),
+        "pct_below_gate": round(y.mean() * 100, 1),
+    }
+
+    importance = (
+        pd.DataFrame({
+            "Feature": X.columns,
+            "Importance": model.feature_importances_,
+        })
+        .sort_values("Importance", ascending=False)
+        .reset_index(drop=True)
+    )
+
+    return model, metrics, importance
+
+
+if __name__ == "__main__":
+    data = generate_synthetic_projects()
+    _, m, imp = train_risk_model(data)
+
+    print(f"Projects generated : {len(data)}")
+    print(f"Below quality gate : {m['pct_below_gate']}%")
+    print(f"Train / test split : {m['n_train']} / {m['n_test']}")
+    print()
+    print(f"Held-out accuracy  : {m['accuracy']}%")
+    print(f"Precision / Recall : {m['precision']}% / {m['recall']}%")
+    print(f"5-fold CV          : {m['cv_mean']}% (+/- {m['cv_std']}%)")
+    print()
+    print(imp.head(10).to_string(index=False))
+
+
+# ─────────────────────────────────────────────
+# DISPLAY HELPER
+#
+# get_dummies splits Language into three separate columns
+# (Language_English, Language_Hindi, Language_Gujarati), so the
+# raw importance table shows them as three unrelated bars.
+#
+# That is misleading to read. This folds them back into one
+# "Language" row so the chart matches how I actually think
+# about the feature.
+# ─────────────────────────────────────────────
+
+# Columns that were one-hot encoded, and the label to show instead.
+_GROUPED = {"Language": "Language", "Data_Type": "Audio type"}
+
+# Tidier names for the plain numeric columns.
+_LABELS = {
+    "Planned_Files": "Planned volume",
+    "Annotator_Count": "Annotator count",
+    "Pct_Native_Speakers": "Native speaker share",
+    "Avg_Audio_Seconds": "Average clip length",
+    "Guideline_Age_Days": "Guideline age",
+    "Early_Rejection_Rate": "Early rejection rate",
+}
+
+
+def group_importance(importance: pd.DataFrame) -> pd.DataFrame:
     """
-    Takes the project data and predicts which projects
-    are at risk of failing the 90% quality gate.
+    Combine one-hot dummy columns back into their parent feature.
 
-    Input:  df_projects - the project DataFrame from data_loader.py
-    Output: the same DataFrame with two new columns added:
-            - Prediction: Pass or Fail
-            - Risk_Score: probability of failing (0 to 100%)
+    Takes the raw importance table from train_risk_model and returns
+    a version with readable feature names, summed where a feature was
+    split across several dummy columns.
     """
+    totals = {}
 
-    # ─────────────────────────────────────────────
-    # STEP 1: CREATE THE TARGET COLUMN
-    # This is what the model is trying to predict.
-    # 1 = Pass (approval rate is 90% or above)
-    # 0 = Fail (approval rate is below 90%)
-    # ─────────────────────────────────────────────
-    df = df_projects.copy()
-    df["Target"] = (df["Approval_Rate_%"] >= 90).astype(int)
+    for _, row in importance.iterrows():
+        name = row["Feature"]
 
-    # ─────────────────────────────────────────────
-    # STEP 2: CONVERT WORDS TO NUMBERS
-    # ML models only understand numbers.
-    # LabelEncoder converts "Hindi" → 0, "Gujarati" → 1
-    # "English" → 2 (alphabetical order, automatically)
-    # ─────────────────────────────────────────────
-    le_lang      = LabelEncoder()
-    le_type      = LabelEncoder()
+        # Does this column come from a one-hot group?
+        parent = None
+        for prefix, label in _GROUPED.items():
+            if name.startswith(prefix + "_"):
+                parent = label
+                break
 
-    df["Language_Code"]  = le_lang.fit_transform(df["Language"])
-    df["DataType_Code"]  = le_type.fit_transform(df["Data_Type"])
+        # Use the group label if it is a dummy, otherwise the tidy name.
+        key = parent if parent else _LABELS.get(name, name)
+        totals[key] = totals.get(key, 0.0) + row["Importance"]
 
-    # ─────────────────────────────────────────────
-    # STEP 3: DEFINE FEATURES AND TARGET
-    # Features = what the model learns FROM
-    # Target   = what the model is trying to predict
-    # ─────────────────────────────────────────────
-    features = [
-        "Language_Code",    # which language
-        "DataType_Code",    # conversational AI vs voice command
-        "Files_Reviewed",   # how many files in the project
-        "Rejected",         # how many have been rejected so far
-    ]
-
-    X = df[features]   # input data (features)
-    y = df["Target"]   # output data (pass or fail)
-
-    # ─────────────────────────────────────────────
-    # STEP 4: TRAIN THE MODEL
-    # We use RandomForest — it builds multiple decision
-    # trees and combines their votes for a final answer.
-    # random_state=42 just means results are consistent
-    # every time we run it (not random each time)
-    # ─────────────────────────────────────────────
-    model = RandomForestClassifier(n_estimators=100, random_state=42)
-    model.fit(X, y)
-
-    # ─────────────────────────────────────────────
-    # STEP 5: MAKE PREDICTIONS
-    # predict()       → Pass or Fail (1 or 0)
-    # predict_proba() → probability of each outcome
-    #                   we take column 1 = probability of Pass
-    # ─────────────────────────────────────────────
-    predictions      = model.predict(X)
-    probabilities    = model.predict_proba(X)[:, 1]
-
-    # ─────────────────────────────────────────────
-    # STEP 6: ADD RESULTS BACK TO THE DATAFRAME
-    # Convert numbers back to readable labels
-    # ─────────────────────────────────────────────
-    df["Prediction"] = ["Pass" if p == 1 else "Fail" for p in predictions]
-    df["Pass_Probability_%"] = (probabilities * 100).round(1)
-
-   # ─────────────────────────────────────────────
-    # STEP 7: CALCULATE MODEL ACCURACY
-    # Accuracy = how many predictions were correct
-    # out of total predictions made.
-    # We compare predictions against actual targets.
-    # ─────────────────────────────────────────────
-    correct = (predictions == y.values).sum()
-    accuracy = round((correct / len(y)) * 100, 1)
-
-    # ─────────────────────────────────────────────
-    # STEP 8: FEATURE IMPORTANCE
-    # Random Forest tells us which features it found
-    # most useful for making predictions.
-    # Higher value = more important to the model.
-    # ─────────────────────────────────────────────
-    importance_df = pd.DataFrame({
-        "Feature": ["Language", "Data Type", "Files Reviewed", "Rejected Count"],
-        "Importance": model.feature_importances_
-    }).sort_values("Importance", ascending=False).reset_index(drop=True)
-
-    # ─────────────────────────────────────────────
-    # STEP 9: RETURN EVERYTHING
-    # We now return three things instead of one:
-    # 1. predictions DataFrame
-    # 2. accuracy score
-    # 3. feature importance DataFrame
-    # ─────────────────────────────────────────────
-    predictions_df = df[["Project_Code", "Language", "Status",
-                          "Approval_Rate_%", "Prediction", "Pass_Probability_%"]]
-
-    return predictions_df, accuracy, importance_df
+    return (
+        pd.DataFrame({
+            "Feature": list(totals.keys()),
+            "Importance": list(totals.values()),
+        })
+        .sort_values("Importance", ascending=False)
+        .reset_index(drop=True)
+    )
