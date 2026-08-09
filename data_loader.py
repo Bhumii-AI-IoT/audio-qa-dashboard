@@ -201,7 +201,10 @@ def get_risk_flags():
             "Hindi accent variety not covered in current guidelines",
             "Guideline ambiguity - overlapping accent categories",
         ],
-        "Severity": ["High", "High", "Medium", "Resolved"],
+        # Severity is how bad it is. Status is whether it is still open.
+# "Resolved" was sitting in this list, which conflated the two -
+# the Status column below already carries that.
+"Severity": ["High", "High", "Medium", "Low"],
         "Status":   ["Open", "Open", "Open",   "Resolved"],
         "Description": [
             "PROJ-GU-002 at 80% approval - lowest across all projects. "
