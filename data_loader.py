@@ -62,18 +62,7 @@ def get_project_data():
             "Audio - Conversational AI",
             "Audio - Voice Command",
         ],
-        # Status reflects realistic QA pipeline logic:
-        # Nothing below 90% approval gets marked Delivered
-        "Status": [
-            "Delivered",        # 88.6% - borderline, approved after guideline review
-            "In Final Review",  # 87.1% - flagged, returned for rework
-            "In Final Review",  # 85.2% - still in review
-            "Delivered",        # 83.2% - Gujarati threshold adjusted to 85% given complexity
-            "In Final Review",  # 80.0% - needs more work
-            "Delivered",        # 95.7% - well above threshold
-            "Delivered",        # 95.8% - well above threshold
-            "In Progress",      # 93.6% - still being reviewed
-        ],
+      
         "Files_Reviewed": [
             420, 380, 210,
             190, 140,
@@ -93,14 +82,45 @@ def get_project_data():
 
     df = pd.DataFrame(data)
 
+    # ─────────────────────────────────────────────
+    # QUALITY GATE - applied, not assumed
+    #
+    # Status used to be typed in by hand, and it drifted: two projects
+    # were marked Delivered while sitting below the gate my own docstring
+    # said they had to clear. Same failure as the language rates I had
+    # hardcoded in app.py.
+    
     # Approval rate = files that passed final review / total files reviewed
     # This is the single most important metric in a QA pipeline
     df["Approval_Rate_%"] = round(
         (df["Approved"] / df["Files_Reviewed"]) * 100, 1
     )
 
-    return df
+    # Deriving it means the rule and the data cannot disagree.
+    # ─────────────────────────────────────────────
 
+    # Gujarati carries a lower gate. It is the hardest language to QA -
+    # linguistically complex with the smallest annotator pool - so holding
+    # it to the same 90% as English would mean nothing ever ships. The
+    # lower bar is a deliberate decision, documented here rather than
+    # applied quietly to individual rows.
+    QUALITY_GATES = {
+        "English": 90.0,
+        "Hindi": 90.0,
+        "Gujarati": 85.0,
+    }
+
+    df["Gate_%"] = df["Language"].map(QUALITY_GATES)
+
+    # A project can only be Delivered if it clears its language gate.
+    df["Status"] = df.apply(
+        lambda row: "Delivered"
+        if row["Approval_Rate_%"] >= row["Gate_%"]
+        else "In Final Review",
+        axis=1,
+    )
+
+    return df
 
 def get_language_summary():
     """
