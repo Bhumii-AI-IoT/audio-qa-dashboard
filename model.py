@@ -1,5 +1,45 @@
 """
-model.py — recreated from provided content for testing
+model.py
+========
+Risk prediction for audio QA projects.
+
+WHAT THIS PREDICTS
+------------------
+Whether a project will finish BELOW the 90% approval quality gate,
+using only signals known EARLY - before the project completes.
+
+WHY THE FEATURES CHANGED
+------------------------
+The first version used 'rejected count' as a feature and 'approval rate
+below 90%' as the label. Those are the same thing:
+
+    approval_rate = 1 - (rejected / files_reviewed)
+
+So the model was handed the answer. That is target leakage, and it is
+why it reported 100% accuracy. Neither more data nor a train/test split
+would have fixed it - the leak was in the features themselves.
+
+This version uses only leading indicators - things a QA lead genuinely
+knows in week one:
+
+    language                 which language the project is in
+    data_type                conversational AI / voice command / etc
+    planned_files            total volume committed to
+    annotator_count          how many people on the project
+    pct_native_speakers      share of annotators native in the language
+    avg_audio_seconds        mean clip length
+    guideline_age_days       how stale the annotation guidelines are
+    early_rejection_rate     rejection rate on the FIRST 10% of files
+
+The last one is the key signal. It is genuinely available early and it
+does not encode the final outcome.
+
+DATA
+----
+All data here is SYNTHETIC. It is generated to reflect patterns I observe
+during real QA work across Hindi, Gujarati and English, but it contains
+no client data of any kind. This is a personal learning project and is
+not connected to my employer.
 """
 
 import numpy as np
@@ -80,6 +120,9 @@ FEATURES = [
     "Early_Rejection_Rate",
 ]
 
+# Never include these as features - they are the label in disguise.
+# Kept here as a written reminder of what caused the original bug.
+
 LEAKY_COLUMNS = ["Final_Approval_Rate", "Below_Gate", "Rejected", "Approved"]
 
 
@@ -129,7 +172,6 @@ def train_risk_model(df: pd.DataFrame, seed: int = RANDOM_SEED):
     )
 
     return model, metrics, importance
-
 
 if __name__ == "__main__":
     data = generate_synthetic_projects()
