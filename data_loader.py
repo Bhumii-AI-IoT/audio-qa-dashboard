@@ -124,27 +124,38 @@ def get_project_data():
 
 def get_language_summary():
     """
-    Returns approval rates rolled up by language.
+    Roll the project data up by language.
 
-    Patterns reflect real experience reviewing audio data:
-    - English: highest approval rate - accent issues exist
-      but the language stays intelligible across variants
-    - Hindi: affected by regional accent variation (Bhojpuri,
-      Rajasthani etc.) which creates genuine labelling ambiguity
-    - Gujarati: toughest - linguistically complex and smallest
-      dataset, so errors are harder to spot consistently
+    This used to be a hand-typed table, and it drifted from the projects
+    it was meant to summarise - Gujarati read 82.7% here while the
+    underlying projects worked out to 81.8%. Same failure as the
+    hardcoded Status column.
+
+    Deriving it means the summary and the projects cannot disagree.
     """
-    data = {
-        "Language":        ["English", "Hindi",  "Gujarati"],
-        "Total_Files":     [1210,      1010,     330],
-        "Approval_Rate_%": [95.2,      87.1,     82.7],
-        "Top_Rejection_Reason": [
-            "Accent misclassification",
-            "Regional accent ambiguity in intent labelling",
-            "Linguistic complexity - morphology errors",
-        ],
+    df = get_project_data()
+
+    summary = df.groupby("Language").agg(
+        Total_Files=("Files_Reviewed", "sum"),
+        Total_Approved=("Approved", "sum"),
+    ).reset_index()
+
+    # Weighted by file count, not a mean of percentages - a 500-file
+    # project should count for more than a 140-file one.
+    summary["Approval_Rate_%"] = round(
+        summary["Total_Approved"] / summary["Total_Files"] * 100, 1
+    )
+
+    # These stay hand-written because they are qualitative judgements
+    # from doing the reviews, not something calculable from the data.
+    top_reasons = {
+        "English": "Accent misclassification",
+        "Hindi": "Regional accent ambiguity in intent labelling",
+        "Gujarati": "Linguistic complexity - morphology errors",
     }
-    return pd.DataFrame(data)
+    summary["Top_Rejection_Reason"] = summary["Language"].map(top_reasons)
+
+    return summary.sort_values("Approval_Rate_%", ascending=False).reset_index(drop=True)
 
 
 def get_rejection_reasons():

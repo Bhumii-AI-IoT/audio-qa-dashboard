@@ -257,7 +257,11 @@ def colour_status(val):
         return ""
 
 styled = filtered.style.map(colour_status, subset=["Status"])
-st.dataframe(styled, hide_index=True, use_container_width=True)
+st.dataframe(
+    styled.format({"Approval_Rate_%": "{:.1f}", "Gate_%": "{:.1f}"}),
+    hide_index=True,
+    use_container_width=True,
+)
 
 st.markdown("---")
 
