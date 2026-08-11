@@ -5,6 +5,8 @@ A project health and quality tracking dashboard for multilingual audio and conve
 
 [View the live dashboard here](https://audio-app-dashboard-nun6jt8bkandqfhza9xpsv.streamlit.app/)
 
+> Hosted on Streamlit Community Cloud's free tier — if the app has been idle it may take a moment to wake.
+
 > This is a personal learning project. It is not connected to my employer, and all data is synthetic.
 
 ## What This Is
