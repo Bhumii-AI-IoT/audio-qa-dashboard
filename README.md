@@ -155,7 +155,7 @@ streamlit run app.py
 AI Data Quality Specialist based in London, working on 
 multilingual audio and conversational AI training data.
 
-BSc Electronics and Communications Engineering
+BE Electronics and Communications Engineering
 MSc Global Project Management, University of Essex
 
 I sit at the intersection of engineering, project management, 
